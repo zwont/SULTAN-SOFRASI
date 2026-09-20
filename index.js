@@ -18,6 +18,9 @@ const customerItemImages={
 };
 function renderCustomerMenu(){
   const root=document.getElementById('categories'); if(!root)return;
+  // Menü sunucudan yenilense bile açık kategori kapanmasın.
+  const openCategory=root.querySelector('.category.open');
+  const openKey=openCategory?.dataset.menuKey||null;
   const menu=getCustomerMenu();
   const validNames=new Set(menu.flatMap(c=>Array.isArray(c.items)?c.items:[]));
   selected=selected.filter(x=>validNames.has(x.name));
@@ -26,6 +29,14 @@ function renderCustomerMenu(){
     const cls=escMenu(c.key||('cat'+i));
     return `<section class="category ${cls}" data-menu-key="${cls}"><button class="cat-btn" type="button" onclick="toggleCat(this.parentElement)"><span class="cat-label"><span class="cat-icon">${escMenu(c.icon||'🍽️')}</span>${escMenu(c.title)}</span><span class="plus">＋</span></button><div class="options">${items.map(name=>{const img=customerItemImages[name];return `<label class="option"><span class="left">${img?`<img class="food-thumb" alt="${escMenu(name)}" src="${img}">`:''}<span class="name">${escMenu(name)}</span></span><span class="left"><span class="qty" data-name="${escMenu(name)}"><button type="button" class="qty-btn" onclick="changeQty(this,-1)">−</button><span class="qty-num">${selected.find(x=>x.name===name)?.qty||0}</span><button type="button" class="qty-btn" onclick="changeQty(this,1)">＋</button></span></span></label>`}).join('')}</div></section>`;
   }).join('');
+  if(openKey){
+    const keepOpen=root.querySelector(`.category[data-menu-key="${CSS.escape(openKey)}"]`);
+    if(keepOpen){
+      keepOpen.classList.add('open');
+      const plus=keepOpen.querySelector('.plus');
+      if(plus)plus.textContent='−';
+    }
+  }
   update();
 }
 let selected=[]; let orders=[]; try{orders=JSON.parse(localStorage.sultanOrders||'[]')}catch(e){orders=[]}

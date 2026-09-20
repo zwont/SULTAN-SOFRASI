@@ -115,3 +115,8 @@ body{min-height:100vh}
 /* Magnifier: keep the source image fixed; only the lens moves. */
 .photo-card img{pointer-events:none!important;-webkit-user-drag:none!important;user-drag:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;touch-action:none!important;transform:none!important;}
 .photo-card{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;}
+
+/* Açık kategori mouse/touch hareketinde kapanmasın */
+.category .options{position:relative;z-index:1}
+.cat-btn{position:relative;z-index:2}
+.photo-card,.photo-card img{user-select:none;-webkit-user-select:none;-webkit-user-drag:none}
