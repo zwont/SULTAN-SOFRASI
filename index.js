@@ -9,9 +9,8 @@ const DEFAULT_MENU=[
 ];
 function escMenu(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;',"\"":'&quot;'}[c]))}
 function getCustomerMenu(){try{const m=JSON.parse(localStorage.getItem(MENU_KEY));if(Array.isArray(m)&&m.length)return m}catch(e){}return DEFAULT_MENU}
-let openCustomerCategoryKey=null;
-function menuSignature(m){return JSON.stringify(m||[])}
-async function loadMenuFromServer(){try{const r=await fetch('/api/menu',{cache:'no-store'});if(!r.ok)throw 0;const m=await r.json();if(Array.isArray(m)&&m.length){localStorage.setItem(MENU_KEY,JSON.stringify(m));}}catch(e){}}
+let menuUpdatePending=false;
+async function loadMenuFromServer(){try{const r=await fetch('/api/menu',{cache:'no-store'});if(!r.ok)throw 0;const m=await r.json();if(!Array.isArray(m)||!m.length)return;const next=JSON.stringify(m);const old=localStorage.getItem(MENU_KEY);if(old===next)return;localStorage.setItem(MENU_KEY,next);const open=document.querySelector('.category.open');if(open){menuUpdatePending=true;return}renderCustomerMenu()}catch(e){}}
 const customerItemImages={
  'Sütlaç':'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect width=%22120%22 height=%22120%22 fill=%22%23261b1d%22/%3E%3Cellipse cx=%2260%22 cy=%2270%22 rx=%2239%22 ry=%2225%22 fill=%22%23e9ddd0%22/%3E%3Cpath d=%22M22 67h76v13c0 15-17 25-38 25S22 95 22 80z%22 fill=%22%23d8c7b5%22/%3E%3Cellipse cx=%2260%22 cy=%2267%22 rx=%2238%22 ry=%2215%22 fill=%22%23f4eadf%22/%3E%3C/svg%3E',
  'Baklava':'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect width=%22120%22 height=%22120%22 fill=%22%23271d16%22/%3E%3Cpath d=%22M25 45l35-18 35 18-35 18zM25 63l35-18 35 18-35 18zM25 81l35-18 35 18-35 18z%22 fill=%22%23b97a34%22/%3E%3Cpath d=%22M32 44l28-13 28 13-28 14zM32 62l28-13 28 13-28 14zM32 80l28-13 28 13-28 14z%22 fill=%22%23e0ad55%22/%3E%3C/svg%3E',
@@ -19,39 +18,27 @@ const customerItemImages={
  'Kola Zero':'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect width=%22120%22 height=%22120%22 fill=%22%231a2028%22/%3E%3Cpath d=%22M42 25h36l-4 70H46z%22 fill=%22%23d9e7ee%22/%3E%3Cpath d=%22M45 40h30v45H45z%22 fill=%22%23a83d32%22/%3E%3Cpath d=%22M70 25l12-10%22 stroke=%22%23ddd%22 stroke-width=%225%22/%3E%3C/svg%3E'
 };
 function renderCustomerMenu(){
-  const keepOpen=openCustomerCategoryKey;
   const root=document.getElementById('categories'); if(!root)return;
+  const openCategory=root.querySelector('.category.open');
+  const openKey=openCategory?.dataset.menuKey||null;
   const menu=getCustomerMenu();
   const validNames=new Set(menu.flatMap(c=>Array.isArray(c.items)?c.items:[]));
   selected=selected.filter(x=>validNames.has(x.name));
   root.innerHTML=menu.map((c,i)=>{
     const items=Array.isArray(c.items)?c.items:[];
-    const key=String(c.key||('cat'+i));
-    const cls=escMenu(key);
-    const isOpen=keepOpen===key;
-    return `<details class="category ${cls}" data-menu-key="${cls}"${isOpen?' open':''}>
-      <summary class="cat-btn"><span class="cat-label"><span class="cat-icon">${escMenu(c.icon||'🍽️')}</span>${escMenu(c.title)}</span><span class="plus">＋</span></summary>
-      <div class="options">${items.map(name=>{
-        const img=customerItemImages[name];
-        return `<label class="option"><span class="left">${img?`<img class="food-thumb" alt="${escMenu(name)}" src="${img}">`:''}<span class="name">${escMenu(name)}</span></span><span class="left"><span class="qty" data-name="${escMenu(name)}"><button type="button" class="qty-btn" onclick="changeQty(this,-1);event.stopPropagation()">−</button><span class="qty-num">${selected.find(x=>x.name===name)?.qty||0}</span><button type="button" class="qty-btn" onclick="changeQty(this,1);event.stopPropagation()">＋</button></span></span></label>`
-      }).join('')}</div>
-    </details>`;
+    const cls=escMenu(c.key||('cat'+i));
+    return `<section class="category ${cls}" data-menu-key="${cls}"><button class="cat-btn" type="button" onclick="toggleCat(this.parentElement)"><span class="cat-label"><span class="cat-icon">${escMenu(c.icon||'🍽️')}</span>${escMenu(c.title)}</span><span class="plus">＋</span></button><div class="options">${items.map(name=>{const img=customerItemImages[name];return `<label class="option"><span class="left">${img?`<img class="food-thumb" alt="${escMenu(name)}" src="${img}">`:''}<span class="name">${escMenu(name)}</span></span><span class="left"><span class="qty" data-name="${escMenu(name)}"><button type="button" class="qty-btn" onclick="changeQty(this,-1)">−</button><span class="qty-num">${selected.find(x=>x.name===name)?.qty||0}</span><button type="button" class="qty-btn" onclick="changeQty(this,1)">＋</button></span></span></label>`}).join('')}</div></section>`;
   }).join('');
-  root.querySelectorAll('details.category').forEach(d=>{
-    d.addEventListener('toggle',()=>{
-      if(d.open){
-        openCustomerCategoryKey=d.dataset.menuKey||null;
-        root.querySelectorAll('details.category').forEach(other=>{
-          if(other!==d) other.open=false;
-        });
-      }else if(openCustomerCategoryKey===d.dataset.menuKey){
-        openCustomerCategoryKey=null;
-      }
-    });
-  });
+  if(openKey){
+    const keepOpen=root.querySelector(`.category[data-menu-key="${CSS.escape(openKey)}"]`);
+    if(keepOpen){
+      keepOpen.classList.add('open');
+      const plus=keepOpen.querySelector('.plus');
+      if(plus)plus.textContent='−';
+    }
+  }
   update();
 }
-
 let selected=[]; let orders=[]; try{orders=JSON.parse(localStorage.sultanOrders||'[]')}catch(e){orders=[]}
 
 function openPhotoFullscreen(card){
@@ -157,16 +144,13 @@ function closePhotoFullscreen(e){
   document.querySelectorAll('.photo-card').forEach(card=>card.addEventListener('click',e=>e.preventDefault()));
 })();
 
-function openPhotoCategory(type){
-  const el=document.querySelector('.category.'+type);
+function openPhotoCategory(type){const el=document.querySelector('.category.'+type);if(!el)return;document.querySelectorAll('.category').forEach(x=>{x.classList.remove('open');const p=x.querySelector('.plus');if(p)p.textContent='＋'});el.classList.add('open');const p=el.querySelector('.plus');if(p)p.textContent='−';setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),40)}
+function toggleCat(el){
   if(!el)return;
-  el.open=true;
-  el.dispatchEvent(new Event('toggle'));
-  setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),40);
-}
-function toggleCat(el,e){
-  const d=el?.closest?.('details.category');
-  if(d){d.open=!d.open;}
+  const was=el.classList.contains('open');
+  document.querySelectorAll('#categories .category').forEach(x=>{x.classList.remove('open');const p=x.querySelector('.plus');if(p)p.textContent='＋'});
+  if(!was){el.classList.add('open');const p=el.querySelector('.plus');if(p)p.textContent='−';}
+  if(was && menuUpdatePending){menuUpdatePending=false;renderCustomerMenu();}
 }
 function changeQty(btn, delta){
   const qty=btn.closest('.qty');
@@ -204,8 +188,8 @@ async function savePhotos(){const a=await readPhoto(document.getElementById('pho
 async function loadPhotos(){try{const r=await fetch('/api/photos',{cache:'no-store'});if(r.ok){const p=await r.json();if(p.photoA)localStorage.customPhotoA=p.photoA;if(p.photoB)localStorage.customPhotoB=p.photoB}}catch(e){}const a=localStorage.customPhotoA,b=localStorage.customPhotoB;if(a&&document.getElementById('photoA'))document.getElementById('photoA').src=a;if(b&&document.getElementById('photoB'))document.getElementById('photoB').src=b}
 function showAdmin(){document.getElementById('shop').style.display='none';document.getElementById('admin').style.display='block';document.getElementById('orders').innerHTML=orders.length?orders.map(o=>`<div class="order"><b>${o.name}</b><div>${o.items.join('<br>')}</div><b>${o.total} TL</b><small><br>${o.time}</small></div>`).join(''):'<p>Henüz sipariş yok.</p>'}
 function showShop(){document.getElementById('shop').style.display='block';document.getElementById('admin').style.display='none'}
-(async()=>{await loadMenuFromServer();renderCustomerMenu();loadPhotos();update();})(); setInterval(loadPhotos,5000);
-
+renderCustomerMenu(); loadMenuFromServer(); loadPhotos(); update(); setInterval(loadMenuFromServer,3000); setInterval(loadPhotos,5000);
+window.addEventListener('storage',e=>{if(e.key===MENU_KEY){renderCustomerMenu()}});
 
 (function(){
   function open(card){ openPhotoFullscreen(card); }
