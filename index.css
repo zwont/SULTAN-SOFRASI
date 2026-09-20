@@ -305,3 +305,13 @@ body{min-height:100vh}
 /* Magnifier: keep the source image fixed; only the lens moves. */
 .photo-card img{pointer-events:none!important;-webkit-user-drag:none!important;user-drag:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;touch-action:none!important;transform:none!important;}
 .photo-card{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;}
+
+/* Kategori açılma fix: native details/summary kullanılır; tek tıklamada kapanma olmaz. */
+.category{overflow:hidden;}
+.category>.cat-btn{list-style:none;}
+.category>.cat-btn::-webkit-details-marker{display:none;}
+.category>.cat-btn::marker{display:none;}
+.category[open]>.options{display:block;animation:openMenu .18s ease-out;}
+.category:not([open])>.options{display:none;}
+.category[open]>.cat-btn .plus{transform:rotate(90deg);}
+.category>.cat-btn{user-select:none;-webkit-user-select:none;}

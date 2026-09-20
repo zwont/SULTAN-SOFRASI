@@ -26,12 +26,32 @@ function renderCustomerMenu(){
   selected=selected.filter(x=>validNames.has(x.name));
   root.innerHTML=menu.map((c,i)=>{
     const items=Array.isArray(c.items)?c.items:[];
-    const cls=escMenu(c.key||('cat'+i));
-    return `<section class="category ${cls}" data-menu-key="${cls}"><button class="cat-btn" type="button" onclick="toggleCat(this.parentElement,event)"><span class="cat-label"><span class="cat-icon">${escMenu(c.icon||'🍽️')}</span>${escMenu(c.title)}</span><span class="plus">＋</span></button><div class="options">${items.map(name=>{const img=customerItemImages[name];return `<label class="option"><span class="left">${img?`<img class="food-thumb" alt="${escMenu(name)}" src="${img}">`:''}<span class="name">${escMenu(name)}</span></span><span class="left"><span class="qty" data-name="${escMenu(name)}"><button type="button" class="qty-btn" onclick="changeQty(this,-1)">−</button><span class="qty-num">${selected.find(x=>x.name===name)?.qty||0}</span><button type="button" class="qty-btn" onclick="changeQty(this,1)">＋</button></span></span></label>`}).join('')}</div></section>`;
+    const key=String(c.key||('cat'+i));
+    const cls=escMenu(key);
+    const isOpen=keepOpen===key;
+    return `<details class="category ${cls}" data-menu-key="${cls}"${isOpen?' open':''}>
+      <summary class="cat-btn"><span class="cat-label"><span class="cat-icon">${escMenu(c.icon||'🍽️')}</span>${escMenu(c.title)}</span><span class="plus">＋</span></summary>
+      <div class="options">${items.map(name=>{
+        const img=customerItemImages[name];
+        return `<label class="option"><span class="left">${img?`<img class="food-thumb" alt="${escMenu(name)}" src="${img}">`:''}<span class="name">${escMenu(name)}</span></span><span class="left"><span class="qty" data-name="${escMenu(name)}"><button type="button" class="qty-btn" onclick="changeQty(this,-1);event.stopPropagation()">−</button><span class="qty-num">${selected.find(x=>x.name===name)?.qty||0}</span><button type="button" class="qty-btn" onclick="changeQty(this,1);event.stopPropagation()">＋</button></span></span></label>`
+      }).join('')}</div>
+    </details>`;
   }).join('');
-  if(keepOpen){const el=[...root.querySelectorAll('.category')].find(x=>x.dataset.menuKey===keepOpen);if(el){el.classList.add('open');const plus=el.querySelector('.plus');if(plus)plus.textContent='−';}}
+  root.querySelectorAll('details.category').forEach(d=>{
+    d.addEventListener('toggle',()=>{
+      if(d.open){
+        openCustomerCategoryKey=d.dataset.menuKey||null;
+        root.querySelectorAll('details.category').forEach(other=>{
+          if(other!==d) other.open=false;
+        });
+      }else if(openCustomerCategoryKey===d.dataset.menuKey){
+        openCustomerCategoryKey=null;
+      }
+    });
+  });
   update();
 }
+
 let selected=[]; let orders=[]; try{orders=JSON.parse(localStorage.sultanOrders||'[]')}catch(e){orders=[]}
 
 function openPhotoFullscreen(card){
@@ -137,8 +157,17 @@ function closePhotoFullscreen(e){
   document.querySelectorAll('.photo-card').forEach(card=>card.addEventListener('click',e=>e.preventDefault()));
 })();
 
-function openPhotoCategory(type){const el=document.querySelector('.category.'+type);if(!el)return;document.querySelectorAll('.category').forEach(x=>{x.classList.remove('open');const p=x.querySelector('.plus');if(p)p.textContent='＋'});el.classList.add('open');const p=el.querySelector('.plus');if(p)p.textContent='−';setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),40)}
-function toggleCat(el,e){if(e){e.preventDefault();e.stopPropagation();}const was=el.classList.contains('open');document.querySelectorAll('.category').forEach(x=>{x.classList.remove('open');const p=x.querySelector('.plus');if(p)p.textContent='＋'});openCustomerCategoryKey=was?null:(el.dataset.menuKey||null);if(!was){el.classList.add('open');const p=el.querySelector('.plus');if(p)p.textContent='−'}}
+function openPhotoCategory(type){
+  const el=document.querySelector('.category.'+type);
+  if(!el)return;
+  el.open=true;
+  el.dispatchEvent(new Event('toggle'));
+  setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),40);
+}
+function toggleCat(el,e){
+  const d=el?.closest?.('details.category');
+  if(d){d.open=!d.open;}
+}
 function changeQty(btn, delta){
   const qty=btn.closest('.qty');
   if(!qty)return;
@@ -176,7 +205,7 @@ async function loadPhotos(){try{const r=await fetch('/api/photos',{cache:'no-sto
 function showAdmin(){document.getElementById('shop').style.display='none';document.getElementById('admin').style.display='block';document.getElementById('orders').innerHTML=orders.length?orders.map(o=>`<div class="order"><b>${o.name}</b><div>${o.items.join('<br>')}</div><b>${o.total} TL</b><small><br>${o.time}</small></div>`).join(''):'<p>Henüz sipariş yok.</p>'}
 function showShop(){document.getElementById('shop').style.display='block';document.getElementById('admin').style.display='none'}
 (async()=>{await loadMenuFromServer();renderCustomerMenu();loadPhotos();update();})(); setInterval(loadPhotos,5000);
-window.addEventListener('storage',e=>{if(e.key===MENU_KEY){renderCustomerMenu()}});
+
 
 (function(){
   function open(card){ openPhotoFullscreen(card); }
