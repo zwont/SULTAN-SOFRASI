@@ -9,7 +9,7 @@ const DEFAULT_MENU=[
 ];
 function escMenu(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;',"\"":'&quot;'}[c]))}
 function getCustomerMenu(){try{const m=JSON.parse(localStorage.getItem(MENU_KEY));if(Array.isArray(m)&&m.length)return m}catch(e){}return DEFAULT_MENU}
-async function loadMenuFromServer(){try{const r=await fetch('/api/menu',{cache:'no-store'});if(!r.ok)throw 0;const m=await r.json();if(Array.isArray(m)&&m.length){localStorage.setItem(MENU_KEY,JSON.stringify(m));renderCustomerMenu()}}catch(e){}}
+async function loadMenuFromServer(){try{const r=await fetch('/api/menu',{cache:'no-store'});if(!r.ok)throw 0;const m=await r.json();if(Array.isArray(m)&&m.length){const old=localStorage.getItem(MENU_KEY);const next=JSON.stringify(m);if(old!==next){localStorage.setItem(MENU_KEY,next);renderCustomerMenu()}}}catch(e){}}
 const customerItemImages={
  'Sütlaç':'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect width=%22120%22 height=%22120%22 fill=%22%23261b1d%22/%3E%3Cellipse cx=%2260%22 cy=%2270%22 rx=%2239%22 ry=%2225%22 fill=%22%23e9ddd0%22/%3E%3Cpath d=%22M22 67h76v13c0 15-17 25-38 25S22 95 22 80z%22 fill=%22%23d8c7b5%22/%3E%3Cellipse cx=%2260%22 cy=%2267%22 rx=%2238%22 ry=%2215%22 fill=%22%23f4eadf%22/%3E%3C/svg%3E',
  'Baklava':'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect width=%22120%22 height=%22120%22 fill=%22%23271d16%22/%3E%3Cpath d=%22M25 45l35-18 35 18-35 18zM25 63l35-18 35 18-35 18zM25 81l35-18 35 18-35 18z%22 fill=%22%23b97a34%22/%3E%3Cpath d=%22M32 44l28-13 28 13-28 14zM32 62l28-13 28 13-28 14zM32 80l28-13 28 13-28 14z%22 fill=%22%23e0ad55%22/%3E%3C/svg%3E',
