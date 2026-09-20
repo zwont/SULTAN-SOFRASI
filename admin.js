@@ -17,11 +17,20 @@ function togglePanel(panelId,arrowId){
 function clone(v){return JSON.parse(JSON.stringify(v))}
 function loadMenu(){try{const m=JSON.parse(localStorage.getItem(MENU_KEY));if(Array.isArray(m)&&m.length)return m}catch(e){} return clone(DEFAULT_MENU)}
 let menu=loadMenu();
-async function loadMenuFromServer(){try{const r=await fetch('/api/menu',{cache:'no-store'});if(!r.ok)throw 0;const m=await r.json();if(Array.isArray(m)&&m.length){menu=m;localStorage.setItem(MENU_KEY,JSON.stringify(menu));renderMenuAdmin()}}catch(e){}}
+let openAdminCatKey=null;
+let lastServerMenuJSON='';
+async function loadMenuFromServer(){try{const r=await fetch('/api/menu',{cache:'no-store'});if(!r.ok)throw 0;const m=await r.json();if(Array.isArray(m)&&m.length){const next=JSON.stringify(m);if(next===lastServerMenuJSON)return;lastServerMenuJSON=next;const local=JSON.stringify(menu);if(next!==local){menu=m;localStorage.setItem(MENU_KEY,next);renderMenuAdmin()}}}catch(e){}}
 
 function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 async function saveMenu(){localStorage.setItem(MENU_KEY,JSON.stringify(menu));renderMenuAdmin();try{await fetch('/api/menu',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({menu})})}catch(e){alert('Menü sunucuya kaydedilemedi.')} }
-function toggleCat(i){const el=document.getElementById('admin-cat-'+i);if(!el)return;const was=el.classList.contains('open');document.querySelectorAll('.admin-cat').forEach(x=>x.classList.remove('open'));if(!was)el.classList.add('open')}
+function toggleCat(i){
+  const el=document.getElementById('admin-cat-'+i);if(!el)return;
+  const key=menu[i]?.key || String(i);
+  const was=el.classList.contains('open');
+  document.querySelectorAll('.admin-cat').forEach(x=>x.classList.remove('open'));
+  openAdminCatKey=was?null:key;
+  if(!was)el.classList.add('open');
+}
 function editCategory(i){const title=prompt('Kategori adı',menu[i].title);if(title===null||!title.trim())return;const icon=prompt('Kategori ikonu (ör: 🍽️)',menu[i].icon||'');if(icon===null)return;menu[i].title=title.trim();menu[i].icon=icon.trim();saveMenu()}
 function deleteCategory(i){if(menu.length<=1)return alert('En az bir kategori kalmalı.');if(!confirm(`"${menu[i].title}" kategorisi ve içindeki ürünler silinsin mi?`))return;menu.splice(i,1);saveMenu()}
 function addCategory(){const title=prompt('Yeni kategori adı');if(!title||!title.trim())return;const icon=prompt('Kategori ikonu (ör: 🍕)','🍽️');if(icon===null)return;const key='cat_'+Date.now();menu.push({key,title:title.trim(),icon:icon.trim(),items:[]});saveMenu();setTimeout(()=>{const i=menu.length-1;toggleCat(i)},30)}
@@ -29,6 +38,8 @@ function addItem(i){const n=prompt(`${menu[i].title} için yeni içerik`);if(!n|
 function editItem(i,j){const n=prompt('İçerik adı',menu[i].items[j]);if(n===null||!n.trim())return;menu[i].items[j]=n.trim();saveMenu();setTimeout(()=>toggleCat(i),20)}
 function deleteItem(i,j){if(!confirm(`"${menu[i].items[j]}" kaldırılsın mı?`))return;menu[i].items.splice(j,1);saveMenu();setTimeout(()=>toggleCat(i),20)}
 function renderMenuAdmin(){const root=document.getElementById('adminCats');if(!root)return;root.innerHTML=menu.map((c,i)=>`<div class="admin-cat" id="admin-cat-${i}"><div class="cat-head" onclick="toggleCat(${i})"><div><span style="font-size:22px">${esc(c.icon||'🍽️')}</span> <h3 style="display:inline">${esc(c.title)}</h3></div><span class="admin-head-actions"><button type="button" class="small-btn" onclick="event.stopPropagation();editCategory(${i})">Düzenle</button><button type="button" class="small-btn danger" onclick="event.stopPropagation();deleteCategory(${i})">Sil</button><button type="button" class="cat-plus" onclick="event.stopPropagation();addItem(${i})">Ekle</button></span></div><div class="cat-body"><div class="cat-body-inner"><button type="button" class="add-content" onclick="addItem(${i})">Ekle</button>${c.items.length?c.items.map((x,j)=>`<div class="admin-item"><span>• ${esc(x)}</span><span><button type="button" onclick="editItem(${i},${j})">Düzenle</button><button type="button" class="danger" onclick="deleteItem(${i},${j})">Sil</button></span></div>`).join(''):'<div class="empty-admin">Bu kategoride içerik yok.</div>'}</div></div></div>`).join('')+`<button type="button" class="new-category" onclick="addCategory()">＋ Yeni kategori ekle</button>`}
+restoreOpenAdminCategory();
+function restoreOpenAdminCategory(){if(!openAdminCatKey)return;const i=menu.findIndex(c=>(c.key||String(menu.indexOf(c)))===openAdminCatKey);if(i>=0){const el=document.getElementById('admin-cat-'+i);if(el)el.classList.add('open')}}
 
 let orders=[];
 let knownOrderIds=null;
