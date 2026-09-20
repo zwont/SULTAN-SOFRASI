@@ -1,0 +1,6 @@
+[
+  {"key":"yemek","title":"Yemekler","icon":"🍽️","items":["Etli Kuru Fasulye","Bulgur Pilavı","Pirinç Pilavı","Köfte & Patates"]},
+  {"key":"salata","title":"Salatalar","icon":"🥗","items":["Havuç Tarator","Mor Lahana","Mevsim Salata","Çoban Salata"]},
+  {"key":"tatli","title":"Tatlılar","icon":"🍰","items":["Sütlaç","Baklava"]},
+  {"key":"icecek","title":"İçecekler","icon":"🥤","items":["Ayran","Kola Zero"]}
+]

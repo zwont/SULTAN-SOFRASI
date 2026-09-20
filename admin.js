@@ -17,8 +17,10 @@ function togglePanel(panelId,arrowId){
 function clone(v){return JSON.parse(JSON.stringify(v))}
 function loadMenu(){try{const m=JSON.parse(localStorage.getItem(MENU_KEY));if(Array.isArray(m)&&m.length)return m}catch(e){} return clone(DEFAULT_MENU)}
 let menu=loadMenu();
+async function loadMenuFromServer(){try{const r=await fetch('/api/menu',{cache:'no-store'});if(!r.ok)throw 0;const m=await r.json();if(Array.isArray(m)&&m.length){menu=m;localStorage.setItem(MENU_KEY,JSON.stringify(menu));renderMenuAdmin()}}catch(e){}}
+
 function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function saveMenu(){localStorage.setItem(MENU_KEY,JSON.stringify(menu));renderMenuAdmin()}
+async function saveMenu(){localStorage.setItem(MENU_KEY,JSON.stringify(menu));renderMenuAdmin();try{await fetch('/api/menu',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({menu})})}catch(e){alert('Menü sunucuya kaydedilemedi.')} }
 function toggleCat(i){const el=document.getElementById('admin-cat-'+i);if(!el)return;const was=el.classList.contains('open');document.querySelectorAll('.admin-cat').forEach(x=>x.classList.remove('open'));if(!was)el.classList.add('open')}
 function editCategory(i){const title=prompt('Kategori adı',menu[i].title);if(title===null||!title.trim())return;const icon=prompt('Kategori ikonu (ör: 🍽️)',menu[i].icon||'');if(icon===null)return;menu[i].title=title.trim();menu[i].icon=icon.trim();saveMenu()}
 function deleteCategory(i){if(menu.length<=1)return alert('En az bir kategori kalmalı.');if(!confirm(`"${menu[i].title}" kategorisi ve içindeki ürünler silinsin mi?`))return;menu.splice(i,1);saveMenu()}
@@ -54,6 +56,15 @@ function playOrderBell(){
   }catch(e){}
 }
 document.addEventListener('pointerdown',unlockOrderSound,{once:false});
+function demoOrders(){
+  const all=menu.flatMap(c=>c.items.map(name=>({name,cat:c.title})));
+  const pick=()=>all[Math.floor(Math.random()*all.length)]||{name:'Etli Kuru Fasulye'};
+  const names=['Ahmet Yılmaz','Mehmet Kaya','Zeynep Demir','Can Şahin'];
+  return names.map((name,i)=>{
+    const a=pick(), b=pick();
+    return {name,items:[{name:a.name,qty:1+(i%2)},{name:b.name,qty:1+(i%3===0?1:0)}],message:['Az pilav olsun','Kapıya bırakabilir misiniz?','Ayran da ekleyelim',''][i],time:`20:0${i}:2${i}`};
+  });
+}
 function orderKey(o,i){return 'seen_'+[o.name||'',o.time||'',i].join('|')}
 function isSeen(o,i){return localStorage.getItem(orderKey(o,i))==='1'}
 function markSeen(i){const o=orders[i];if(!o)return;localStorage.setItem(orderKey(o,i),'1');renderOrders()}
@@ -73,24 +84,23 @@ async function loadOrders(){
     const fresh=await r.json();
     const freshIds=new Set(fresh.map(o=>String(o.id||'' )).filter(Boolean));
     if(knownOrderIds!==null){
-      const newCount=[...freshIds].filter(id=>!knownOrderIds.has(id)).length;
-      if(newCount>0){
-        for(let n=0;n<newCount;n++){
-          setTimeout(()=>playOrderBell(),n*650);
-        }
-      }
+      let newCount=0;
+      freshIds.forEach(id=>{if(!knownOrderIds.has(id))newCount++;});
+      if(newCount>0) playOrderBell();
     }
     knownOrderIds=freshIds;
     orders=fresh;
     renderOrders();
   }catch(e){
-    orders=[];
+    orders=demoOrders();
     renderOrders();
   }
 }
 function readPhoto(file){return new Promise(resolve=>{if(!file)return resolve(null);const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(file)})}
-async function savePhotos(){const a=await readPhoto(document.getElementById('photo1')?.files[0]);const b=await readPhoto(document.getElementById('photo2')?.files[0]);if(a)localStorage.customPhotoA=a;if(b)localStorage.customPhotoB=b;alert('Fotoğraflar güncellendi.')}
+async function savePhotos(){const a=await readPhoto(document.getElementById('photo1')?.files[0]);const b=await readPhoto(document.getElementById('photo2')?.files[0]);try{await fetch('/api/photos',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({photoA:a||'',photoB:b||''})});if(a)localStorage.customPhotoA=a;if(b)localStorage.customPhotoB=b;alert('Fotoğraflar güncellendi.')}catch(e){alert('Fotoğraflar sunucuya kaydedilemedi.')}}
 renderMenuAdmin();
 loadOrders();
+loadMenuFromServer();
 setInterval(loadOrders,2000);
+setInterval(loadMenuFromServer,3000);
 window.addEventListener('storage',e=>{if(e.key===MENU_KEY){menu=loadMenu();renderMenuAdmin()}});

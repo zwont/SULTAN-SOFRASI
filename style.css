@@ -111,3 +111,7 @@ body{min-height:100vh}
 .qty{display:inline-flex;align-items:center;gap:5px;margin-left:4px}.qty-btn{width:28px;height:28px;border:0;border-radius:8px;background:#fff;color:#111;font-size:19px;font-weight:900;line-height:1;cursor:pointer}.qty-btn:active{transform:scale(.92)}.qty-num{min-width:18px;text-align:center;font-weight:900;color:#fff;font-size:14px}
 
 .daily-note{text-align:center;color:#fff;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px;background:#050505;font-size:12px;font-weight:700;padding:2px 0 9px;letter-spacing:.1px;}
+
+/* Magnifier: keep the source image fixed; only the lens moves. */
+.photo-card img{pointer-events:none!important;-webkit-user-drag:none!important;user-drag:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;touch-action:none!important;transform:none!important;}
+.photo-card{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;}

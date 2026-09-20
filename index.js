@@ -9,6 +9,7 @@ const DEFAULT_MENU=[
 ];
 function escMenu(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;',"\"":'&quot;'}[c]))}
 function getCustomerMenu(){try{const m=JSON.parse(localStorage.getItem(MENU_KEY));if(Array.isArray(m)&&m.length)return m}catch(e){}return DEFAULT_MENU}
+async function loadMenuFromServer(){try{const r=await fetch('/api/menu',{cache:'no-store'});if(!r.ok)throw 0;const m=await r.json();if(Array.isArray(m)&&m.length){localStorage.setItem(MENU_KEY,JSON.stringify(m));renderCustomerMenu()}}catch(e){}}
 const customerItemImages={
  'Sütlaç':'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect width=%22120%22 height=%22120%22 fill=%22%23261b1d%22/%3E%3Cellipse cx=%2260%22 cy=%2270%22 rx=%2239%22 ry=%2225%22 fill=%22%23e9ddd0%22/%3E%3Cpath d=%22M22 67h76v13c0 15-17 25-38 25S22 95 22 80z%22 fill=%22%23d8c7b5%22/%3E%3Cellipse cx=%2260%22 cy=%2267%22 rx=%2238%22 ry=%2215%22 fill=%22%23f4eadf%22/%3E%3C/svg%3E',
  'Baklava':'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect width=%22120%22 height=%22120%22 fill=%22%23271d16%22/%3E%3Cpath d=%22M25 45l35-18 35 18-35 18zM25 63l35-18 35 18-35 18zM25 81l35-18 35 18-35 18z%22 fill=%22%23b97a34%22/%3E%3Cpath d=%22M32 44l28-13 28 13-28 14zM32 62l28-13 28 13-28 14zM32 80l28-13 28 13-28 14z%22 fill=%22%23e0ad55%22/%3E%3C/svg%3E',
@@ -48,6 +49,90 @@ function closePhotoFullscreen(e){
   setTimeout(()=>{if(!overlay.classList.contains("show")) big.removeAttribute("src")},180);
 }
 
+
+
+// Fotoğraflar: uzun basınca gerçek büyüteç, kısa dokunuşta tam ekran.
+(function initPhotoMagnifier(){
+  let pressTimer=null, active=false, moved=false, startX=0, startY=0, currentCard=null, lens=null;
+  const HOLD_MS=450, MOVE_TOLERANCE=8, ZOOM=2.25;
+
+  function ensureLens(){
+    if(lens) return lens;
+    lens=document.createElement('div');
+    lens.className='touch-lens';
+    document.body.appendChild(lens);
+    return lens;
+  }
+  function setLens(card,x,y){
+    const img=card?.querySelector('img'); if(!img) return;
+    const l=ensureLens();
+    const r=img.getBoundingClientRect();
+    const src=img.currentSrc||img.src;
+    l.style.backgroundImage=`url("${src}")`;
+    l.style.backgroundSize=`${r.width*ZOOM}px ${r.height*ZOOM}px`;
+    const ix=Math.max(0,Math.min(r.width,(x-r.left)));
+    const iy=Math.max(0,Math.min(r.height,(y-r.top)));
+    l.style.left=`${x-110}px`;
+    l.style.top=`${y-110}px`;
+    l.style.backgroundPosition=`${110-ix*ZOOM}px ${110-iy*ZOOM}px`;
+  }
+  function hideLens(){
+    if(lens) lens.classList.remove('show');
+    active=false; currentCard=null;
+  }
+  function cancelTimer(){ if(pressTimer){clearTimeout(pressTimer);pressTimer=null;} }
+
+  document.addEventListener('pointerdown',e=>{
+    const card=e.target.closest('.photo-card');
+    if(!card) return;
+    const img=card.querySelector('img');
+    if(!img) return;
+    startX=e.clientX; startY=e.clientY; moved=false; currentCard=card;
+    img.draggable=false;
+    cancelTimer();
+    pressTimer=setTimeout(()=>{
+      if(moved || !currentCard) return;
+      active=true;
+      const l=ensureLens(); l.classList.add('show');
+      setLens(currentCard,e.clientX,e.clientY);
+    },HOLD_MS);
+  },{passive:false});
+
+  document.addEventListener('pointermove',e=>{
+    if(!currentCard) return;
+    const dx=e.clientX-startX, dy=e.clientY-startY;
+    if(Math.hypot(dx,dy)>MOVE_TOLERANCE){
+      moved=true;
+      if(!active) cancelTimer();
+    }
+    if(active){
+      e.preventDefault();
+      setLens(currentCard,e.clientX,e.clientY);
+    }
+  },{passive:false});
+
+  document.addEventListener('pointerup',e=>{
+    const card=currentCard;
+    const wasActive=active;
+    cancelTimer();
+    if(wasActive){ e.preventDefault(); hideLens(); return; }
+    currentCard=null;
+    if(card && !moved){
+      // Kısa dokunuş: resmi aç. Native image drag yok.
+      e.preventDefault();
+      openPhotoFullscreen(card);
+    }
+  },{passive:false});
+
+  document.addEventListener('pointercancel',()=>{cancelTimer();hideLens();moved=false;});
+  document.addEventListener('dragstart',e=>{ if(e.target.closest('.photo-card')) e.preventDefault(); });
+  document.addEventListener('contextmenu',e=>{ if(e.target.closest('.photo-card')) e.preventDefault(); });
+  document.addEventListener('selectstart',e=>{ if(e.target.closest('.photo-card')) e.preventDefault(); });
+
+  // Butonun inline click'i/klavye aktivasyonu da tam ekran açabilsin.
+  document.querySelectorAll('.photo-card').forEach(card=>card.addEventListener('click',e=>e.preventDefault()));
+})();
+
 function openPhotoCategory(type){const el=document.querySelector('.category.'+type);if(!el)return;document.querySelectorAll('.category').forEach(x=>{x.classList.remove('open');const p=x.querySelector('.plus');if(p)p.textContent='＋'});el.classList.add('open');const p=el.querySelector('.plus');if(p)p.textContent='−';setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),40)}
 function toggleCat(el){const was=el.classList.contains('open');document.querySelectorAll('.category').forEach(x=>{x.classList.remove('open');x.querySelector('.plus').textContent='＋'});if(!was){el.classList.add('open');el.querySelector('.plus').textContent='−'}}
 function changeQty(btn, delta){
@@ -83,10 +168,10 @@ function update(){
 function sendOrder(){const name=document.getElementById('customerName').value.trim();if(!selected.length)return alert('Önce ürün seç.');if(!name)return alert('Adını yaz.');fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,message:document.getElementById('orderMessage')?.value.trim()||'',items:selected.map(x=>({name:x.name,qty:x.qty||1}))})}).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(()=>{alert('Sipariş iletildi');selected=[];document.querySelectorAll('.qty-num').forEach(x=>x.textContent='0');if(document.getElementById('orderMessage'))document.getElementById('orderMessage').value='';update()}).catch(()=>alert('Sipariş gönderilemedi. Sunucu bağlantısını kontrol et.'))}
 function readPhoto(file){return new Promise(resolve=>{if(!file)return resolve(null);const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(file)})}
 async function savePhotos(){const a=await readPhoto(document.getElementById('photo1').files[0]);const b=await readPhoto(document.getElementById('photo2').files[0]);if(a)localStorage.customPhotoA=a;if(b)localStorage.customPhotoB=b;loadPhotos();alert('Fotoğraflar güncellendi.')}
-function loadPhotos(){const a=localStorage.customPhotoA,b=localStorage.customPhotoB;if(a&&document.getElementById('photoA'))document.getElementById('photoA').src=a;if(b&&document.getElementById('photoB'))document.getElementById('photoB').src=b}
+async function loadPhotos(){try{const r=await fetch('/api/photos',{cache:'no-store'});if(r.ok){const p=await r.json();if(p.photoA)localStorage.customPhotoA=p.photoA;if(p.photoB)localStorage.customPhotoB=p.photoB}}catch(e){}const a=localStorage.customPhotoA,b=localStorage.customPhotoB;if(a&&document.getElementById('photoA'))document.getElementById('photoA').src=a;if(b&&document.getElementById('photoB'))document.getElementById('photoB').src=b}
 function showAdmin(){document.getElementById('shop').style.display='none';document.getElementById('admin').style.display='block';document.getElementById('orders').innerHTML=orders.length?orders.map(o=>`<div class="order"><b>${o.name}</b><div>${o.items.join('<br>')}</div><b>${o.total} TL</b><small><br>${o.time}</small></div>`).join(''):'<p>Henüz sipariş yok.</p>'}
 function showShop(){document.getElementById('shop').style.display='block';document.getElementById('admin').style.display='none'}
-renderCustomerMenu(); loadPhotos(); update();
+renderCustomerMenu(); loadMenuFromServer(); loadPhotos(); update(); setInterval(loadMenuFromServer,3000); setInterval(loadPhotos,5000);
 window.addEventListener('storage',e=>{if(e.key===MENU_KEY){renderCustomerMenu()}});
 
 (function(){
@@ -105,64 +190,4 @@ window.addEventListener('storage',e=>{if(e.key===MENU_KEY){renderCustomerMenu()}
     const card=e.target.closest(".photo-card");
     if(card){ e.preventDefault(); open(card); }
   });
-})();
-
-(function(){
-  const DELAY=450, ZOOM=3.0, SIZE=300;
-  let timer=null, activeCard=null, lens=null, active=false, suppressClick=false;
-  function getLens(){
-    if(lens) return lens;
-    lens=document.createElement('div');
-    lens.className='touch-lens';
-    lens.style.width=SIZE+'px';
-    lens.style.height=SIZE+'px';
-    document.body.appendChild(lens);
-    return lens;
-  }
-  function hide(){
-    clearTimeout(timer); timer=null;
-    if(active) suppressClick=true;
-    active=false; activeCard=null;
-    if(lens) lens.classList.remove('show');
-  }
-  function render(x,y){
-    if(!active || !activeCard) return;
-    const img=activeCard.querySelector('img'); if(!img) return;
-    const r=img.getBoundingClientRect();
-    const px=Math.max(0,Math.min(r.width,x-r.left));
-    const py=Math.max(0,Math.min(r.height,y-r.top));
-    const l=getLens();
-    l.style.backgroundImage='url("'+img.currentSrc.replaceAll('"','%22')+'")';
-    l.style.backgroundSize=(r.width*ZOOM)+'px '+(r.height*ZOOM)+'px';
-    l.style.backgroundPosition=(SIZE/2-px*ZOOM)+'px '+(SIZE/2-py*ZOOM)+'px';
-    l.style.left=Math.max(4,Math.min(innerWidth-SIZE-4,x-SIZE/2))+'px';
-    l.style.top=Math.max(4,Math.min(innerHeight-SIZE-4,y-SIZE/2))+'px';
-    l.classList.add('show');
-  }
-  function point(e){ return {x:e.clientX,y:e.clientY}; }
-  function start(e){
-    if(e.pointerType==='mouse' && e.button!==0) return;
-    const card=e.target.closest('.photo-card'); if(!card) return;
-    activeCard=card; active=false; clearTimeout(timer); suppressClick=false;
-    const pt=point(e);
-    timer=setTimeout(()=>{active=true; suppressClick=true; render(pt.x,pt.y)},DELAY);
-    if(e.cancelable) e.preventDefault();
-  }
-  function move(e){
-    if(!activeCard) return;
-    const pt=point(e);
-    if(active){render(pt.x,pt.y); if(e.cancelable)e.preventDefault();}
-  }
-  function end(){ hide(); }
-  document.addEventListener('pointerdown',start,{passive:false});
-  document.addEventListener('pointermove',move,{passive:false});
-  document.addEventListener('pointerup',end,{passive:true});
-  document.addEventListener('pointercancel',end,{passive:true});
-  document.addEventListener('pointerleave',end,{passive:true});
-  document.addEventListener('click',function(e){
-    if(suppressClick){
-      suppressClick=false;
-      e.preventDefault(); e.stopImmediatePropagation();
-    }
-  },true);
 })();
