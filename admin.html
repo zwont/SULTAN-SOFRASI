@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sultan Sofrası — Admin</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<header class="top-menu">
+  <div class="brand">Sultan <b>Sofrası</b> Admin</div>
+</header>
+
+<section class="admin-wrap separate-box photo-box">
+  <div class="manage-toggle" onclick="togglePanel('photoPanel','photoArrow')">
+    <div><h2>📸 Fotoğrafları Düzenle</h2><p>Günlük iki fotoğrafı ayrı ayrı değiştirebilirsin.</p></div>
+    <span id="photoArrow">＋</span>
+  </div>
+  <div id="photoPanel" class="manage-panel">
+    <div class="panel-content">
+      <div class="photo-row">
+        <div><label>Fotoğraf 1</label><input id="photo1" type="file" accept="image/*"></div>
+        <div><label>Fotoğraf 2</label><input id="photo2" type="file" accept="image/*"></div>
+      </div>
+      <button class="save-photos" onclick="savePhotos()">Fotoğrafları Güncelle</button>
+    </div>
+  </div>
+</section>
+
+<section class="admin-wrap separate-box menu-box">
+  <div class="manage-toggle" onclick="togglePanel('menuPanel','menuArrow')">
+    <div><h2>🍽️ Menü Yönetimi</h2><p>Kategorileri ve içerikleri buradan yönet.</p></div>
+    <span id="menuArrow">＋</span>
+  </div>
+  <div id="menuPanel" class="manage-panel">
+    <div class="panel-content">
+      <div id="adminCats"></div>
+    </div>
+  </div>
+</section>
+
+<section class="admin-wrap orders-first">
+  <h2>📦 Gelen Siparişler</h2>
+  <div id="orders"><p>Siparişler yükleniyor...</p></div>
+</section>
+
+<script src="admin.js"></script>
+</body>
+</html>
