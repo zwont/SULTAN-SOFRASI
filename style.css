@@ -112,6 +112,138 @@ body{min-height:100vh}
 
 .daily-note{text-align:center;color:#fff;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px;background:#050505;font-size:12px;font-weight:700;padding:2px 0 9px;letter-spacing:.1px;}
 
-/* Magnifier: keep the source image fixed; only the lens moves. */
-.photo-card img{pointer-events:none!important;-webkit-user-drag:none!important;user-drag:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;touch-action:none!important;transform:none!important;}
-.photo-card{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;}
+
+/* TÜM KATEGORİLERE MOR ÇİZGİ */
+.category .cat-btn{border-left:9px solid #071a3d!important;}
+
+
+/* Büyük fotoğraf penceresi: görseli kırpmadan ekrana sığdır, yakınlaştırma ve sürükleme destekle. */
+.photo-fullscreen {
+  display:none !important;
+  position:fixed !important;
+  inset:0 !important;
+  z-index:2147483000 !important;
+  width:100vw !important;
+  height:100vh !important;
+  height:100dvh !important;
+  box-sizing:border-box !important;
+  padding:58px 12px 78px !important;
+  margin:0 !important;
+  overflow:hidden !important;
+  background:rgba(0,0,0,.97) !important;
+  align-items:center !important;
+  justify-content:center !important;
+  cursor:default !important;
+  touch-action:none !important;
+}
+.photo-fullscreen.show { display:flex !important; }
+.photo-fullscreen > #fullscreenPhoto {
+  display:block !important;
+  position:relative !important;
+  flex:0 1 auto !important;
+  width:auto !important;
+  height:auto !important;
+  max-width:calc(100vw - 24px) !important;
+  max-height:calc(100dvh - 140px) !important;
+  object-fit:contain !important;
+  object-position:center center !important;
+  margin:0 auto !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:2px !important;
+  box-shadow:none !important;
+  transform-origin:center center !important;
+  animation:none !important;
+  will-change:transform !important;
+  user-select:none !important;
+  -webkit-user-select:none !important;
+  -webkit-user-drag:none !important;
+  touch-action:none !important;
+  pointer-events:auto !important;
+}
+.photo-fullscreen .close-photo {
+  position:absolute !important;
+  top:max(10px, env(safe-area-inset-top)) !important;
+  right:max(10px, env(safe-area-inset-right)) !important;
+  z-index:5 !important;
+  display:grid !important;
+  place-items:center !important;
+  width:44px !important;
+  height:44px !important;
+  padding:0 !important;
+  border:1px solid rgba(255,255,255,.2) !important;
+  border-radius:50% !important;
+  background:rgba(35,35,35,.92) !important;
+  color:#fff !important;
+  font-size:30px !important;
+  line-height:1 !important;
+  cursor:pointer !important;
+}
+.photo-viewer-controls {
+  position:absolute !important;
+  z-index:6 !important;
+  left:50% !important;
+  bottom:max(12px, env(safe-area-inset-bottom)) !important;
+  transform:translateX(-50%) !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:8px !important;
+  max-width:calc(100vw - 20px) !important;
+  padding:8px !important;
+  border:1px solid rgba(255,255,255,.16) !important;
+  border-radius:16px !important;
+  background:rgba(35,35,35,.96) !important;
+  color:#fff !important;
+  box-shadow:0 5px 24px rgba(0,0,0,.4) !important;
+  font:700 14px/1 Arial,sans-serif !important;
+  white-space:nowrap !important;
+}
+.photo-viewer-controls button {
+  min-width:40px !important;
+  height:40px !important;
+  padding:0 10px !important;
+  border:1px solid rgba(255,255,255,.2) !important;
+  border-radius:10px !important;
+  background:#fff !important;
+  color:#181818 !important;
+  font:900 22px/1 Arial,sans-serif !important;
+  cursor:pointer !important;
+  touch-action:manipulation !important;
+}
+.photo-viewer-controls #photoZoomLabel { min-width:48px !important; text-align:center !important; color:#fff !important; }
+.photo-viewer-controls button.fit-photo { font-size:13px !important; padding:0 12px !important; }
+body.photo-open { overflow:hidden !important; }
+@media(max-width:420px) {
+  .photo-fullscreen { padding-left:8px !important; padding-right:8px !important; }
+  .photo-viewer-controls { gap:5px !important; padding:6px !important; }
+  .photo-viewer-controls button { min-width:36px !important; height:38px !important; }
+  .photo-viewer-controls button.fit-photo { padding:0 8px !important; font-size:12px !important; }
+}
+
+
+/* Müşterinin verdiği aktif siparişler: sepetin hemen altında, bu sayfa oturumu boyunca görünür. */
+.customer-active-orders{margin:0 8px 28px;padding:14px;background:#111;color:#fff;border:1px solid #333;border-radius:16px;box-shadow:0 5px 16px rgba(0,0,0,.22)}
+.customer-active-orders[hidden]{display:none!important}
+.customer-active-orders h3{margin:0 0 5px;font-size:19px;font-weight:1000;color:#fff}
+.active-orders-note{margin:0 0 12px;color:#aaa;font-size:12px;line-height:1.4}
+#customerActiveOrders .order{background:#191919;color:#fff;border:1px solid #303030;border-left:4px solid #e74b3c;border-radius:14px;padding:13px;margin:10px 0;box-shadow:0 5px 16px rgba(0,0,0,.25)}
+#customerActiveOrders .order.seen{border-left-color:#2f7d4a;opacity:.9}
+#customerActiveOrders .order-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+#customerActiveOrders .order-top>b{font-size:14px;overflow-wrap:anywhere}
+#customerActiveOrders .order-head-right{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+#customerActiveOrders .order-head-right>span{font-size:11px;color:#aaa;white-space:nowrap}
+#customerActiveOrders .seen-btn{border:0;border-radius:999px;padding:7px 10px;background:#fff;color:#111;font-size:12px;font-weight:900;cursor:pointer}
+#customerActiveOrders .seen-btn:active{transform:scale(.97)}
+#customerActiveOrders .seen-btn.done{background:#2f7d4a;color:#fff}
+.active-order-status{display:flex;align-items:center;gap:6px;margin:0 0 8px;color:#b8e5c3;font-size:11px;font-weight:800}
+.active-dot{width:7px;height:7px;display:inline-block;border-radius:50%;background:#42bb68;box-shadow:0 0 0 3px rgba(66,187,104,.13)}
+#customerActiveOrders .order-items{display:flex;flex-direction:column;gap:6px;padding:9px 0;border-top:1px solid #303030;border-bottom:1px solid #303030}
+#customerActiveOrders .order-line{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px;color:#f2f2f2}
+#customerActiveOrders .order-line strong{color:#ff7b6a;min-width:40px;text-align:right}
+#customerActiveOrders .order-message{margin-top:9px;padding:8px 10px;border-radius:8px;background:#242424;color:#ddd;font-size:13px;overflow-wrap:anywhere}
+@media(max-width:520px){
+  .customer-active-orders{margin-left:8px;margin-right:8px;padding:12px}
+  #customerActiveOrders .order-top{align-items:flex-start;flex-direction:column}
+  #customerActiveOrders .order-head-right{width:100%;justify-content:space-between}
+}

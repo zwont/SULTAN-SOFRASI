@@ -21,17 +21,28 @@
 </div>
   <div id="categories"></div>
   <div class="bottom"><h3>🛒 Seçtiklerin</h3><div class="selected" id="selected">Henüz seçim yapmadın.</div><div class="message-box"><input id="orderMessage" type="text" maxlength="120" placeholder="Mesajınız (isteğe bağlı)"></div><button class="send" onclick="sendOrder()">Siparişi Gönder</button></div>
+  <section class="customer-active-orders" id="customerActiveOrders" hidden aria-live="polite" aria-label="Aktif siparişler">
+    <h3>📦 Aktif Siparişler</h3>
+    <p class="active-orders-note">Bu sayfada verdiğin siparişler burada kalır.</p>
+    <div id="customerActiveOrdersList"></div>
+  </section>
 </main>
 <main id="admin"><h2>Gelen Siparişler</h2><div class="photo-admin"><b>📸 Günlük Fotoğraflar</b><div class="photo-row"><input id="photo1" type="file" accept="image/*"><input id="photo2" type="file" accept="image/*"></div><button class="save-photos" onclick="savePhotos()">Fotoğrafları Güncelle</button></div><div id="orders"></div><button class="admin-btn" onclick="showShop()">Müşteri ekranına dön</button></main>
 
 
-<div id="photoFullscreen" class="photo-fullscreen" onclick="closePhotoFullscreen(event)">
-  <button class="close-photo" type="button" onclick="closePhotoFullscreen(event)">×</button>
-  <img id="fullscreenPhoto" alt="Büyük fotoğraf">
+<div id="photoFullscreen" class="photo-fullscreen" onclick="closePhotoFullscreen(event)" aria-label="Büyük fotoğraf görüntüleyici">
+  <button class="close-photo" type="button" aria-label="Görseli kapat" onclick="closePhotoFullscreen(event)">×</button>
+  <img id="fullscreenPhoto" alt="Büyük fotoğraf" draggable="false">
+  <div class="photo-viewer-controls" role="group" aria-label="Görsel kontrolleri" onclick="event.stopPropagation()">
+    <button type="button" aria-label="Uzaklaştır" title="Uzaklaştır" onclick="adjustPhotoZoom(-0.25,event)">−</button>
+    <span id="photoZoomLabel" aria-live="polite">100%</span>
+    <button type="button" aria-label="Yakınlaştır" title="Yakınlaştır" onclick="adjustPhotoZoom(0.25,event)">+</button>
+    <button type="button" class="fit-photo" aria-label="Ekrana sığdır" onclick="resetPhotoView(event)">Ekrana sığdır</button>
+  </div>
 </div>
 
 
 
 
-  <script src="index.js?v=20260920-category-fix-2"></script>
+  <script src="index.js"></script>
 </body></html>

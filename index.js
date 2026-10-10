@@ -5,12 +5,11 @@ const DEFAULT_MENU=[
  {key:'yemek',title:'Yemekler',icon:'🍽️',items:['Etli Kuru Fasulye','Bulgur Pilavı','Pirinç Pilavı','Köfte & Patates']},
  {key:'salata',title:'Salatalar',icon:'🥗',items:['Havuç Tarator','Mor Lahana','Mevsim Salata','Çoban Salata']},
  {key:'tatli',title:'Tatlılar',icon:'🍰',items:['Sütlaç','Baklava']},
+ {key:'corba',title:'Çorbalar',icon:'🍲',items:['Mercimek Çorbası','Ezogelin Çorbası','Tavuk Suyu Çorbası','Yayla Çorbası']},
  {key:'icecek',title:'İçecekler',icon:'🥤',items:['Ayran','Kola Zero']}
 ];
 function escMenu(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;',"\"":'&quot;'}[c]))}
-function getCustomerMenu(){try{const m=JSON.parse(localStorage.getItem(MENU_KEY));if(Array.isArray(m)&&m.length)return m}catch(e){}return DEFAULT_MENU}
-let menuUpdatePending=false;
-async function loadMenuFromServer(){try{const r=await fetch('/api/menu',{cache:'no-store'});if(!r.ok)throw 0;const m=await r.json();if(!Array.isArray(m)||!m.length)return;const next=JSON.stringify(m);const old=localStorage.getItem(MENU_KEY);if(old===next)return;localStorage.setItem(MENU_KEY,next);const open=document.querySelector('.category.open');if(open){menuUpdatePending=true;return}renderCustomerMenu()}catch(e){}}
+function getCustomerMenu(){try{const m=JSON.parse(localStorage.getItem(MENU_KEY));if(Array.isArray(m)&&m.length){if(!m.some(c=>c.key==='corba'||String(c.title||'').toLocaleLowerCase('tr-TR').includes('çorba'))){m.push({...DEFAULT_MENU.find(c=>c.key==='corba')});localStorage.setItem(MENU_KEY,JSON.stringify(m))}return m}}catch(e){}return DEFAULT_MENU}
 const customerItemImages={
  'Sütlaç':'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect width=%22120%22 height=%22120%22 fill=%22%23261b1d%22/%3E%3Cellipse cx=%2260%22 cy=%2270%22 rx=%2239%22 ry=%2225%22 fill=%22%23e9ddd0%22/%3E%3Cpath d=%22M22 67h76v13c0 15-17 25-38 25S22 95 22 80z%22 fill=%22%23d8c7b5%22/%3E%3Cellipse cx=%2260%22 cy=%2267%22 rx=%2238%22 ry=%2215%22 fill=%22%23f4eadf%22/%3E%3C/svg%3E',
  'Baklava':'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect width=%22120%22 height=%22120%22 fill=%22%23271d16%22/%3E%3Cpath d=%22M25 45l35-18 35 18-35 18zM25 63l35-18 35 18-35 18zM25 81l35-18 35 18-35 18z%22 fill=%22%23b97a34%22/%3E%3Cpath d=%22M32 44l28-13 28 13-28 14zM32 62l28-13 28 13-28 14zM32 80l28-13 28 13-28 14z%22 fill=%22%23e0ad55%22/%3E%3C/svg%3E',
@@ -19,8 +18,6 @@ const customerItemImages={
 };
 function renderCustomerMenu(){
   const root=document.getElementById('categories'); if(!root)return;
-  const openCategory=root.querySelector('.category.open');
-  const openKey=openCategory?.dataset.menuKey||null;
   const menu=getCustomerMenu();
   const validNames=new Set(menu.flatMap(c=>Array.isArray(c.items)?c.items:[]));
   selected=selected.filter(x=>validNames.has(x.name));
@@ -29,129 +26,78 @@ function renderCustomerMenu(){
     const cls=escMenu(c.key||('cat'+i));
     return `<section class="category ${cls}" data-menu-key="${cls}"><button class="cat-btn" type="button" onclick="toggleCat(this.parentElement)"><span class="cat-label"><span class="cat-icon">${escMenu(c.icon||'🍽️')}</span>${escMenu(c.title)}</span><span class="plus">＋</span></button><div class="options">${items.map(name=>{const img=customerItemImages[name];return `<label class="option"><span class="left">${img?`<img class="food-thumb" alt="${escMenu(name)}" src="${img}">`:''}<span class="name">${escMenu(name)}</span></span><span class="left"><span class="qty" data-name="${escMenu(name)}"><button type="button" class="qty-btn" onclick="changeQty(this,-1)">−</button><span class="qty-num">${selected.find(x=>x.name===name)?.qty||0}</span><button type="button" class="qty-btn" onclick="changeQty(this,1)">＋</button></span></span></label>`}).join('')}</div></section>`;
   }).join('');
-  if(openKey){
-    const keepOpen=root.querySelector(`.category[data-menu-key="${CSS.escape(openKey)}"]`);
-    if(keepOpen){
-      keepOpen.classList.add('open');
-      const plus=keepOpen.querySelector('.plus');
-      if(plus)plus.textContent='−';
-    }
-  }
   update();
 }
 let selected=[]; let orders=[]; try{orders=JSON.parse(localStorage.sultanOrders||'[]')}catch(e){orders=[]}
 
+let photoZoom = 1;
+let photoPanX = 0;
+let photoPanY = 0;
+let photoDragState = null;
+
+function applyPhotoView(){
+  const overlay = document.getElementById('photoFullscreen');
+  const big = document.getElementById('fullscreenPhoto');
+  if(!overlay || !big) return;
+  const maxX = Math.max(0, (big.clientWidth * (photoZoom - 1)) / 2);
+  const maxY = Math.max(0, (big.clientHeight * (photoZoom - 1)) / 2);
+  photoPanX = Math.max(-maxX, Math.min(maxX, photoPanX));
+  photoPanY = Math.max(-maxY, Math.min(maxY, photoPanY));
+  big.style.transform = `translate3d(${photoPanX}px, ${photoPanY}px, 0) scale(${photoZoom})`;
+  big.style.cursor = photoZoom > 1 ? 'grab' : 'default';
+  const label = document.getElementById('photoZoomLabel');
+  if(label) label.textContent = `${Math.round(photoZoom * 100)}%`;
+}
+function setPhotoZoom(next){
+  photoZoom = Math.max(1, Math.min(5, next));
+  if(photoZoom === 1){ photoPanX = 0; photoPanY = 0; }
+  applyPhotoView();
+}
+function adjustPhotoZoom(delta, e){
+  if(e) e.stopPropagation();
+  setPhotoZoom(photoZoom + delta);
+}
+function resetPhotoView(e){
+  if(e) e.stopPropagation();
+  photoZoom = 1; photoPanX = 0; photoPanY = 0;
+  applyPhotoView();
+}
 function openPhotoFullscreen(card){
-  const img = card && card.querySelector ? card.querySelector("img") : null;
+  const img = card && card.querySelector ? card.querySelector('img') : null;
   if(!img) return;
-  const overlay=document.getElementById("photoFullscreen");
-  const big=document.getElementById("fullscreenPhoto");
-  big.src=img.currentSrc || img.src;
-  overlay.classList.add("show");
-  document.body.classList.add("photo-open");
+  const overlay = document.getElementById('photoFullscreen');
+  const big = document.getElementById('fullscreenPhoto');
+  if(!overlay || !big) return;
+  photoZoom = 1; photoPanX = 0; photoPanY = 0; photoDragState = null;
+  big.style.transform = 'translate3d(0,0,0) scale(1)';
+  big.src = img.currentSrc || img.src;
+  overlay.classList.add('show');
+  document.body.classList.add('photo-open');
+  const fit = () => { if(overlay.classList.contains('show')) applyPhotoView(); };
+  if(big.complete) requestAnimationFrame(()=>requestAnimationFrame(fit));
+  else big.onload = () => requestAnimationFrame(()=>requestAnimationFrame(fit));
 }
 function handlePhotoClick(btn,e){}
 function closePhotoFullscreen(e){
-  if(e && e.target && e.target.id === "fullscreenPhoto") return;
-  const overlay=document.getElementById("photoFullscreen");
-  const big=document.getElementById("fullscreenPhoto");
-  overlay.classList.remove("show");
-  document.body.classList.remove("photo-open");
-  setTimeout(()=>{if(!overlay.classList.contains("show")) big.removeAttribute("src")},180);
+  if(e && e.target && e.target.id === 'fullscreenPhoto') return;
+  if(e && e.target && e.target.closest && e.target.closest('.photo-viewer-controls')) return;
+  const overlay = document.getElementById('photoFullscreen');
+  const big = document.getElementById('fullscreenPhoto');
+  if(!overlay || !big) return;
+  overlay.classList.remove('show');
+  document.body.classList.remove('photo-open');
+  photoDragState = null;
+  photoZoom = 1; photoPanX = 0; photoPanY = 0;
+  setTimeout(()=>{
+    if(!overlay.classList.contains('show')){
+      big.removeAttribute('src');
+      big.style.transform = '';
+    }
+  },180);
 }
-
-
-
-// Fotoğraflar: uzun basınca gerçek büyüteç, kısa dokunuşta tam ekran.
-(function initPhotoMagnifier(){
-  let pressTimer=null, active=false, moved=false, startX=0, startY=0, currentCard=null, lens=null;
-  const HOLD_MS=450, MOVE_TOLERANCE=8, ZOOM=2.25;
-
-  function ensureLens(){
-    if(lens) return lens;
-    lens=document.createElement('div');
-    lens.className='touch-lens';
-    document.body.appendChild(lens);
-    return lens;
-  }
-  function setLens(card,x,y){
-    const img=card?.querySelector('img'); if(!img) return;
-    const l=ensureLens();
-    const r=img.getBoundingClientRect();
-    const src=img.currentSrc||img.src;
-    l.style.backgroundImage=`url("${src}")`;
-    l.style.backgroundSize=`${r.width*ZOOM}px ${r.height*ZOOM}px`;
-    const ix=Math.max(0,Math.min(r.width,(x-r.left)));
-    const iy=Math.max(0,Math.min(r.height,(y-r.top)));
-    l.style.left=`${x-110}px`;
-    l.style.top=`${y-110}px`;
-    l.style.backgroundPosition=`${110-ix*ZOOM}px ${110-iy*ZOOM}px`;
-  }
-  function hideLens(){
-    if(lens) lens.classList.remove('show');
-    active=false; currentCard=null;
-  }
-  function cancelTimer(){ if(pressTimer){clearTimeout(pressTimer);pressTimer=null;} }
-
-  document.addEventListener('pointerdown',e=>{
-    const card=e.target.closest('.photo-card');
-    if(!card) return;
-    const img=card.querySelector('img');
-    if(!img) return;
-    startX=e.clientX; startY=e.clientY; moved=false; currentCard=card;
-    img.draggable=false;
-    cancelTimer();
-    pressTimer=setTimeout(()=>{
-      if(moved || !currentCard) return;
-      active=true;
-      const l=ensureLens(); l.classList.add('show');
-      setLens(currentCard,e.clientX,e.clientY);
-    },HOLD_MS);
-  },{passive:false});
-
-  document.addEventListener('pointermove',e=>{
-    if(!currentCard) return;
-    const dx=e.clientX-startX, dy=e.clientY-startY;
-    if(Math.hypot(dx,dy)>MOVE_TOLERANCE){
-      moved=true;
-      if(!active) cancelTimer();
-    }
-    if(active){
-      e.preventDefault();
-      setLens(currentCard,e.clientX,e.clientY);
-    }
-  },{passive:false});
-
-  document.addEventListener('pointerup',e=>{
-    const card=currentCard;
-    const wasActive=active;
-    cancelTimer();
-    if(wasActive){ e.preventDefault(); hideLens(); return; }
-    currentCard=null;
-    if(card && !moved){
-      // Kısa dokunuş: resmi aç. Native image drag yok.
-      e.preventDefault();
-      openPhotoFullscreen(card);
-    }
-  },{passive:false});
-
-  document.addEventListener('pointercancel',()=>{cancelTimer();hideLens();moved=false;});
-  document.addEventListener('dragstart',e=>{ if(e.target.closest('.photo-card')) e.preventDefault(); });
-  document.addEventListener('contextmenu',e=>{ if(e.target.closest('.photo-card')) e.preventDefault(); });
-  document.addEventListener('selectstart',e=>{ if(e.target.closest('.photo-card')) e.preventDefault(); });
-
-  // Butonun inline click'i/klavye aktivasyonu da tam ekran açabilsin.
-  document.querySelectorAll('.photo-card').forEach(card=>card.addEventListener('click',e=>e.preventDefault()));
-})();
 
 function openPhotoCategory(type){const el=document.querySelector('.category.'+type);if(!el)return;document.querySelectorAll('.category').forEach(x=>{x.classList.remove('open');const p=x.querySelector('.plus');if(p)p.textContent='＋'});el.classList.add('open');const p=el.querySelector('.plus');if(p)p.textContent='−';setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),40)}
-function toggleCat(el){
-  if(!el)return;
-  const was=el.classList.contains('open');
-  document.querySelectorAll('#categories .category').forEach(x=>{x.classList.remove('open');const p=x.querySelector('.plus');if(p)p.textContent='＋'});
-  if(!was){el.classList.add('open');const p=el.querySelector('.plus');if(p)p.textContent='−';}
-  if(was && menuUpdatePending){menuUpdatePending=false;renderCustomerMenu();}
-}
+function toggleCat(el){const was=el.classList.contains('open');document.querySelectorAll('.category').forEach(x=>{x.classList.remove('open');x.querySelector('.plus').textContent='＋'});if(!was){el.classList.add('open');el.querySelector('.plus').textContent='−'}}
 function changeQty(btn, delta){
   const qty=btn.closest('.qty');
   if(!qty)return;
@@ -182,13 +128,73 @@ function update(){
   const cart=document.querySelector('.cart');
   if(cart)cart.textContent=`🛒 ${totalCount}`;
 }
-function sendOrder(){const name=document.getElementById('customerName').value.trim();if(!selected.length)return alert('Önce ürün seç.');if(!name)return alert('Adını yaz.');fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,message:document.getElementById('orderMessage')?.value.trim()||'',items:selected.map(x=>({name:x.name,qty:x.qty||1}))})}).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(()=>{alert('Sipariş iletildi');selected=[];document.querySelectorAll('.qty-num').forEach(x=>x.textContent='0');if(document.getElementById('orderMessage'))document.getElementById('orderMessage').value='';update()}).catch(()=>alert('Sipariş gönderilemedi. Sunucu bağlantısını kontrol et.'))}
+// Müşterinin aktif siparişleri yalnızca bu sayfa oturumu boyunca tutulur.
+let customerSessionOrders=[];
+function renderCustomerActiveOrders(){
+  const panel=document.getElementById('customerActiveOrders');
+  const list=document.getElementById('customerActiveOrdersList');
+  if(!panel||!list)return;
+  if(!customerSessionOrders.length){panel.hidden=true;list.innerHTML='';return;}
+  panel.hidden=false;
+  list.innerHTML=customerSessionOrders.map((o,i)=>{
+    const seen=Boolean(o.customerSeen);
+    const items=Array.isArray(o.items)?o.items:[];
+    const itemMarkup=items.map(item=>{
+      const itemName=typeof item==='object'?(item.name||'Ürün'):String(item);
+      const qty=typeof item==='object'?(Number(item.qty)||1):1;
+      return `<div class="order-line"><span>${escMenu(itemName)}</span><strong>× ${qty}</strong></div>`;
+    }).join('');
+    return `<article class="order customer-order ${seen?'seen':''}">
+      <div class="order-top"><b>👤 ${escMenu(o.name||'')}</b><div class="order-head-right"><span>🕒 ${escMenu(o.time||'')}</span><button type="button" class="seen-btn ${seen?'done':''}" onclick="markCustomerOrderSeen(${i})">${seen?'✓ Görüldü':'✓ Gördüm'}</button></div></div>
+      <div class="active-order-status"><span class="active-dot"></span> Aktif sipariş</div>
+      <div class="order-items">${itemMarkup}</div>
+      ${o.message?`<div class="order-message">💬 ${escMenu(o.message)}</div>`:''}
+    </article>`;
+  }).join('');
+}
+function markCustomerOrderSeen(index){
+  const order=customerSessionOrders[index];
+  if(!order)return;
+  order.customerSeen=true;
+  renderCustomerActiveOrders();
+}
+async function sendOrder(){
+  const name=document.getElementById('customerName').value.trim();
+  if(!selected.length)return alert('Önce ürün seç.');
+  if(!name)return alert('Adını yaz.');
+  const message=document.getElementById('orderMessage')?.value.trim()||'';
+  try{
+    const response=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,message,items:selected.map(x=>({name:x.name,qty:x.qty||1}))})});
+    if(!response.ok)throw new Error('order request failed');
+    const order=await response.json();
+    order.name=order.name||name;
+    order.message=order.message||message;
+    order.items=Array.isArray(order.items)?order.items:selected.map(x=>({name:x.name,qty:x.qty||1}));
+    customerSessionOrders.unshift(order);
+    renderCustomerActiveOrders();
+    alert('Sipariş iletildi. Aktif siparişini sepetin altında görebilirsin.');
+    selected=[];
+    document.querySelectorAll('.qty-num').forEach(x=>x.textContent='0');
+    if(document.getElementById('orderMessage'))document.getElementById('orderMessage').value='';
+    update();
+  }catch(e){
+    alert('Sipariş gönderilemedi. Sunucu bağlantısını kontrol et.');
+  }
+}
+// Tarayıcı sayfadan ayrılırsa sipariş görünümü oturum belleğinden de temizlenir.
+window.addEventListener('pagehide',()=>{
+  customerSessionOrders=[];
+  const panel=document.getElementById('customerActiveOrders');
+  const list=document.getElementById('customerActiveOrdersList');
+  if(panel)panel.hidden=true;
+  if(list)list.innerHTML='';
+});
 function readPhoto(file){return new Promise(resolve=>{if(!file)return resolve(null);const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(file)})}
 async function savePhotos(){const a=await readPhoto(document.getElementById('photo1').files[0]);const b=await readPhoto(document.getElementById('photo2').files[0]);if(a)localStorage.customPhotoA=a;if(b)localStorage.customPhotoB=b;loadPhotos();alert('Fotoğraflar güncellendi.')}
-async function loadPhotos(){try{const r=await fetch('/api/photos',{cache:'no-store'});if(r.ok){const p=await r.json();if(p.photoA)localStorage.customPhotoA=p.photoA;if(p.photoB)localStorage.customPhotoB=p.photoB}}catch(e){}const a=localStorage.customPhotoA,b=localStorage.customPhotoB;if(a&&document.getElementById('photoA'))document.getElementById('photoA').src=a;if(b&&document.getElementById('photoB'))document.getElementById('photoB').src=b}
+function loadPhotos(){const a=localStorage.customPhotoA,b=localStorage.customPhotoB;if(a&&document.getElementById('photoA'))document.getElementById('photoA').src=a;if(b&&document.getElementById('photoB'))document.getElementById('photoB').src=b}
 function showAdmin(){document.getElementById('shop').style.display='none';document.getElementById('admin').style.display='block';document.getElementById('orders').innerHTML=orders.length?orders.map(o=>`<div class="order"><b>${o.name}</b><div>${o.items.join('<br>')}</div><b>${o.total} TL</b><small><br>${o.time}</small></div>`).join(''):'<p>Henüz sipariş yok.</p>'}
 function showShop(){document.getElementById('shop').style.display='block';document.getElementById('admin').style.display='none'}
-renderCustomerMenu(); loadMenuFromServer(); loadPhotos(); update(); setInterval(loadMenuFromServer,3000); setInterval(loadPhotos,5000);
+renderCustomerMenu(); loadPhotos(); update();
 window.addEventListener('storage',e=>{if(e.key===MENU_KEY){renderCustomerMenu()}});
 
 (function(){
@@ -207,4 +213,108 @@ window.addEventListener('storage',e=>{if(e.key===MENU_KEY){renderCustomerMenu()}
     const card=e.target.closest(".photo-card");
     if(card){ e.preventDefault(); open(card); }
   });
+})();
+
+(function(){
+  const DELAY=450, ZOOM=3.0, SIZE=300;
+  let timer=null, activeCard=null, lens=null, active=false, suppressClick=false;
+  function getLens(){
+    if(lens) return lens;
+    lens=document.createElement('div');
+    lens.className='touch-lens';
+    lens.style.width=SIZE+'px';
+    lens.style.height=SIZE+'px';
+    document.body.appendChild(lens);
+    return lens;
+  }
+  function hide(){
+    clearTimeout(timer); timer=null;
+    if(active) suppressClick=true;
+    active=false; activeCard=null;
+    if(lens) lens.classList.remove('show');
+  }
+  function render(x,y){
+    if(!active || !activeCard) return;
+    const img=activeCard.querySelector('img'); if(!img) return;
+    const r=img.getBoundingClientRect();
+    const px=Math.max(0,Math.min(r.width,x-r.left));
+    const py=Math.max(0,Math.min(r.height,y-r.top));
+    const l=getLens();
+    l.style.backgroundImage='url("'+img.currentSrc.replaceAll('"','%22')+'")';
+    l.style.backgroundSize=(r.width*ZOOM)+'px '+(r.height*ZOOM)+'px';
+    l.style.backgroundPosition=(SIZE/2-px*ZOOM)+'px '+(SIZE/2-py*ZOOM)+'px';
+    l.style.left=Math.max(4,Math.min(innerWidth-SIZE-4,x-SIZE/2))+'px';
+    l.style.top=Math.max(4,Math.min(innerHeight-SIZE-4,y-SIZE/2))+'px';
+    l.classList.add('show');
+  }
+  function point(e){ return {x:e.clientX,y:e.clientY}; }
+  function start(e){
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    const card=e.target.closest('.photo-card'); if(!card) return;
+    activeCard=card; active=false; clearTimeout(timer); suppressClick=false;
+    const pt=point(e);
+    timer=setTimeout(()=>{active=true; suppressClick=true; render(pt.x,pt.y)},DELAY);
+    if(e.cancelable) e.preventDefault();
+  }
+  function move(e){
+    if(!activeCard) return;
+    const pt=point(e);
+    if(active){render(pt.x,pt.y); if(e.cancelable)e.preventDefault();}
+  }
+  function end(){ hide(); }
+  document.addEventListener('pointerdown',start,{passive:false});
+  document.addEventListener('pointermove',move,{passive:false});
+  document.addEventListener('pointerup',end,{passive:true});
+  document.addEventListener('pointercancel',end,{passive:true});
+  document.addEventListener('pointerleave',end,{passive:true});
+  document.addEventListener('click',function(e){
+    if(suppressClick){
+      suppressClick=false;
+      e.preventDefault(); e.stopImmediatePropagation();
+    }
+  },true);
+})();
+
+
+
+
+// Büyük görsel: fare tekerleğiyle yakınlaştır, yakınlaştırdıktan sonra fareyle veya dokunarak taşı.
+(function(){
+  const overlay = document.getElementById('photoFullscreen');
+  const img = document.getElementById('fullscreenPhoto');
+  if(!overlay || !img) return;
+  overlay.addEventListener('wheel', e => {
+    if(!overlay.classList.contains('show')) return;
+    e.preventDefault();
+    setPhotoZoom(photoZoom * (e.deltaY < 0 ? 1.18 : 1 / 1.18));
+  }, {passive:false});
+  img.addEventListener('pointerdown', e => {
+    if(!overlay.classList.contains('show') || photoZoom <= 1) return;
+    if(e.pointerType === 'mouse' && e.button !== 0) return;
+    photoDragState = {pointerId:e.pointerId, startX:e.clientX, startY:e.clientY, panX:photoPanX, panY:photoPanY};
+    img.setPointerCapture?.(e.pointerId);
+    img.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  img.addEventListener('pointermove', e => {
+    if(!photoDragState || e.pointerId !== photoDragState.pointerId) return;
+    photoPanX = photoDragState.panX + e.clientX - photoDragState.startX;
+    photoPanY = photoDragState.panY + e.clientY - photoDragState.startY;
+    applyPhotoView();
+    e.preventDefault();
+  });
+  function finishDrag(e){
+    if(photoDragState && (!e || e.pointerId === photoDragState.pointerId)) photoDragState = null;
+    if(overlay.classList.contains('show')) img.style.cursor = photoZoom > 1 ? 'grab' : 'default';
+  }
+  img.addEventListener('pointerup', finishDrag);
+  img.addEventListener('pointercancel', finishDrag);
+  img.addEventListener('lostpointercapture', finishDrag);
+  img.addEventListener('dblclick', e => {
+    if(!overlay.classList.contains('show')) return;
+    e.preventDefault(); e.stopPropagation();
+    if(photoZoom > 1){ resetPhotoView(); } else { setPhotoZoom(2); }
+  });
+  // Touch devices can scroll the page normally; gestures on the enlarged image are reserved for panning.
+  img.addEventListener('dragstart', e => e.preventDefault());
 })();

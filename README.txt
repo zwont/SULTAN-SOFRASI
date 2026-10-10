@@ -16,3 +16,8 @@ KOD YAPISI:
 - index.html + index.js + style.css
 - admin.html + admin.js + style.css
 - server.py sipariş API
+
+MÜŞTERİ AKTİF SİPARİŞLERİ:
+- Sipariş başarıyla gönderilince müşteri sayfasında, sepetin hemen altında görünür.
+- "Gördüm" düğmesi admin panelindeki gibi "Görüldü" durumuna geçer.
+- Müşteri sayfasından ayrılınca bu görünüm temizlenir; sunucuya kaydedilen sipariş admin panelinde kalmaya devam eder.
